@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Тренажер ЭМО - Результаты</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <div class="image-gallery">
+      <div class="gallery-item">
+        <img src="https://images.unsplash.com/photo-1509391618207-32f1fa13c1d2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxvcmFuZ2UlMjBmcnVpdHxlbnwxfHx8fDE3NTk3NzU0OTh8MA&ixlib=rb-4.1.0&q=80&w=400" alt="Апельсин">
+      </div>
+      <div class="gallery-item">
+        <img src="https://images.unsplash.com/photo-1648871226770-3e786bd70244?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxkb2clMjBwZXR8ZW58MXx8fHwxNzU5ODQ1MzA4fDA&ixlib=rb-4.1.0&q=80&w=400" alt="Собака">
+      </div>
+      <div class="gallery-item">
+        <img src="https://images.unsplash.com/photo-1506880018603-83d5b814b5a6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxib29rJTIwcmVhZGluZ3xlbnwxfHx8fDE3NTk4MjYwNTV8MA&ixlib=rb-4.1.0&q=80&w=400" alt="Книга">
+      </div>
+      <div class="gallery-item">
+        <img src="https://images.unsplash.com/photo-1670974636823-1341d802d5b4?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtb3VudGFpbnMlMjBsYW5kc2NhcGV8ZW58MXx8fHwxNzU5NzQ2MjMzfDA&ixlib=rb-4.1.0&q=80&w=400" alt="Горы">
+      </div>
+      <div class="gallery-item">
+        <img src="https://images.unsplash.com/photo-1513360371669-4adf3dd7dff8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjYXQlMjBwZXR8ZW58MXx8fHwxNzU5ODQ5MjY2fDA&ixlib=rb-4.1.0&q=80&w=400" alt="Кот">
+      </div>
+    </div>
+
+    <div class="results-panel">
+      <div class="panel-outer">
+        <div class="panel-inner">
+          <div class="results-header">
+            <h2 class="results-title">Результаты тренажера</h2>
+            <div class="results-summary">
+              <p class="summary-text">Правильных ответов: <span id="correct-count">0</span> из 5</p>
+              <p class="summary-percentage" id="percentage">0%</p>
+            </div>
+          </div>
+
+          <div class="results-table">
+            <div class="table-header">
+              <div class="table-cell">№</div>
+              <div class="table-cell">ПРАВИЛЬНЫЙ ОТВЕТ</div>
+              <div class="table-cell">ВАШ ОТВЕТ</div>
+              <div class="table-cell">РЕЗУЛЬТАТ</div>
+            </div>
+
+            <div id="results-container">
+              <!-- Результаты будут добавлены динамически -->
+            </div>
+          </div>
+
+          <div class="reset-section">
+            <button class="reset-button" onclick="resetQuiz()">Начать заново</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="navigation-link">
+      <a href="question.html" class="link-button">← Вернуться к вопросам</a>
+    </div>
+  </div>
+
+  <script>
+    const questions = [
+      { correctAnswer: 'АПЕЛЬСИН' },
+      { correctAnswer: 'СОБАКА' },
+      { correctAnswer: 'КНИГА' },
+      { correctAnswer: 'ГОРЫ' },
+      { correctAnswer: 'КОТ' }
+    ];
+
+    function calculateResults() {
+      const userAnswers = JSON.parse(localStorage.getItem('userAnswers')) || Array(questions.length).fill('');
+      const resultsContainer = document.getElementById('results-container');
+      let correctCount = 0;
+
+      resultsContainer.innerHTML = '';
+
+      questions.forEach((question, index) => {
+        const userAnswer = userAnswers[index] || '—';
+        const isCorrect = userAnswer === question.correctAnswer;
+        
+        if (isCorrect) {
+          correctCount++;
+        }
+
+        const row = document.createElement('div');
+        row.className = `table-row ${isCorrect ? 'is-correct' : 'is-incorrect'}`;
+        
+        row.innerHTML = `
+          <div class="table-cell table-cell--number">${index + 1}</div>
+          <div class="table-cell table-cell--answer">${question.correctAnswer}</div>
+          <div class="table-cell table-cell--user-answer ${isCorrect ? 'is-correct' : 'is-incorrect'}">${userAnswer}</div>
+          <div class="table-cell table-cell--result">
+            <svg class="result-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              ${isCorrect ? 
+                '<polyline points="20 6 9 17 4 12"></polyline>' : 
+                '<line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>'
+              }
+            </svg>
+          </div>
+        `;
+
+        resultsContainer.appendChild(row);
+      });
+
+      // Обновляем статистику
+      document.getElementById('correct-count').textContent = correctCount;
+      document.getElementById('percentage').textContent = `${Math.round((correctCount / questions.length) * 100)}%`;
+    }
+
+    function resetQuiz() {
+      localStorage.removeItem('userAnswers');
+      window.location.href = 'question.html';
+    }
+
+    // Рассчитываем результаты при загрузке страницы
+    calculateResults();
+  </script>
+</body>
+</html>
