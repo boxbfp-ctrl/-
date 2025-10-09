@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Весёлый интерактивный тренажёр для детей с особенностями развития">
+    <title>Весёлый тренажёр ЭМО</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Стартовая страница -->
+    <div id="start-screen" class="screen active">
+        <button id="sound-btn-start" class="sound-button" aria-label="Озвучить название" title="Нажми, чтобы услышать название!">
+            🎧
+        </button>
+        <button class="close-button" onclick="if(confirm('Вы уверены?')) location.reload()" aria-label="Закрыть">
+            ✕
+        </button>
+        
+        <div class="card-large">
+            <div class="emoji-large">🎉🎈🎊</div>
+            <h1 class="title-large">ВЕСЁЛЫЙ<br/>ТРЕНАЖЁР! 🌟</h1>
+            <p class="subtitle-large">Давай проверим твои знания! 🧠✨</p>
+            <button id="start-btn" class="start-button">НАЧАТЬ 🚀</button>
+        </div>
+    </div>
+
+    <!-- Экран с вопросами -->
+    <div id="question-screen" class="screen">
+        <button id="sound-btn-question" class="sound-button" aria-label="Включить/выключить звук" title="Включить/выключить звук">
+            🎧
+        </button>
+        
+        <!-- Боковая панель с номерами -->
+        <div class="sidebar" id="sidebar"></div>
+
+        <!-- Основной контент -->
+        <div class="main-content">
+            <div class="card-question">
+                <div class="badge-label">
+                    <span class="badge-icon">?</span>
+                    ЗАДАНИЕ
+                </div>
+
+                <div id="question-emoji" class="question-emoji"></div>
+                <h2 id="question-text" class="question-text"></h2>
+
+                <div id="options-container" class="options-container"></div>
+
+                <div class="button-container">
+                    <button id="next-btn" class="next-button" disabled aria-label="Следующий вопрос">
+                        →
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <button class="close-button" onclick="if(confirm('Ты уверен, что хочешь выйти?')) location.reload()" aria-label="Закрыть">
+            ✕
+        </button>
+    </div>
+
+    <!-- Экран результатов -->
+    <div id="results-screen" class="screen">
+        <button id="sound-btn-results" class="sound-button" aria-label="Включить/выключить звук" title="Включить/выключить звук">
+            🎧
+        </button>
+        <button id="restart-btn" class="close-button" aria-label="Начать заново">
+            ✕
+        </button>
+
+        <div class="results-container">
+            <div class="results-header">
+                <div id="results-emoji" class="results-emoji"></div>
+                <h2 id="results-title" class="results-title"></h2>
+                <p id="results-score" class="results-score"></p>
+            </div>
+
+            <div class="table-wrapper">
+                <table class="results-table">
+                    <thead>
+                        <tr>
+                            <th>№</th>
+                            <th>Вопрос</th>
+                            <th>Твой ответ</th>
+                            <th>Результат</th>
+                        </tr>
+                    </thead>
+                    <tbody id="results-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Анимация успеха -->
+    <div id="success-overlay" class="success-overlay">
+        <div class="success-emoji">🎉✨🎊</div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
