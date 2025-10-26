@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Тренажёр — Таблица ответов</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-wrap">
+    <main class="trainer" role="main" aria-labelledby="results-title">
+      <h1 id="results-title" style="position:absolute;left:-9999px">Итог</h1>
+
+      <button id="soundToggle" class="sound-toggle" aria-pressed="true" title="Включить / выключить звук">
+        🎧
+      </button>
+
+      <section class="content answers-panel" aria-live="polite">
+        <div style="text-align:center; margin-bottom:24px;">
+          <div id="resultsEmoji" style="font-size:80px; margin-bottom:12px;">🎉</div>
+          <h2 style="font-size:36px; margin:0 0 12px 0; font-weight:900">ИТОГ</h2>
+          <p id="resultsScore" style="font-size:24px; font-weight:700; margin:0;"></p>
+        </div>
+
+        <div id="tableContainer" aria-label="Таблица ответов"></div>
+
+        <div style="text-align:center; margin-top:24px;">
+          <button id="restartButton" class="restart-button" type="button">ПРОЙТИ ТЕСТ ЗАНОВО</button>
+        </div>
+      </section>
+    </main>
+
+    <button id="closeButton" class="close-button" aria-label="Выход">✕</button>
+  </div>
+
+  <script>
+  (function(){
+    'use strict';
+
+    const STORAGE_KEY = 'emo_trainer_answers_v1';
+    const STORAGE_SOUND_KEY = 'emo_trainer_sound_v1';
+    const VOWELS = 'АЕЁИОУЫЭЮЯ';
+
+    const tableContainer = document.getElementById('tableContainer');
+    const restartButton = document.getElementById('restartButton');
+    const resultsEmoji = document.getElementById('resultsEmoji');
+    const resultsScore = document.getElementById('resultsScore');
+    const soundToggleEl = document.getElementById('soundToggle');
+    const closeButtonEl = document.getElementById('closeButton');
+
+    let soundOn = true;
+
+    function speak(text) {
+      if (!soundOn || !window.speechSynthesis) return;
+
+      try {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'ru-RU';
+        utterance.rate = 0.85;
+        utterance.pitch = 1.3;
+        utterance.volume = 1.0;
+
+        const voices = window.speechSynthesis.getVoices();
+        const femaleVoice = voices.find(function(v) {
+          return v.lang.indexOf('ru') === 0 && (
+            v.name.indexOf('Elena') !== -1 || 
+            v.name.indexOf('Milena') !== -1 || 
+            v.name.indexOf('Anna') !== -1
+          );
+        }) || voices.find(function(v) { return v.lang.indexOf('ru') === 0; });
+
+        if (femaleVoice) utterance.voice = femaleVoice;
+
+        utterance.onstart = function() { 
+          soundToggleEl.classList.add('playing'); 
+        };
+        utterance.onend = function() { 
+          soundToggleEl.classList.remove('playing'); 
+        };
+
+        window.speechSynthesis.speak(utterance);
+      } catch (error) {
+        console.error('Ошибка озвучки:', error);
+      }
+    }
+
+    function loadAnswers() {
+      try {
+        var raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return [];
+        var parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return [];
+        return parsed;
+      } catch(e) {
+        return [];
+      }
+    }
+
+    function clearAnswers() {
+      localStorage.removeItem(STORAGE_KEY);
+    }
+
+    function createCellTextWithColorizedLetters(text) {
+      var container = document.createElement('div');
+      container.style.display = 'inline-block';
+      for (var i = 0; i < text.length; i++) {
+        var ch = text[i];
+        var span = document.createElement('span');
+        if (VOWELS.indexOf(ch) !== -1) {
+          span.className = 'vowel';
+        } else {
+          span.className = 'consonant';
+        }
+        span.textContent = ch;
+        container.appendChild(span);
+      }
+      return container;
+    }
+
+    function renderTable(answers) {
+      var table = document.createElement('table');
+      table.className = 'answers-table';
+
+      var thead = document.createElement('thead');
+      var headRow = document.createElement('tr');
+      var headers = ['#','КАРТИНКА','ПРАВИЛЬНЫЙ ОТВЕТ','ТВОЙ ОТВЕТ','РЕЗУЛЬТАТ'];
+      for (var h = 0; h < headers.length; h++) {
+        var th = document.createElement('th');
+        th.textContent = headers[h];
+        headRow.appendChild(th);
+      }
+      thead.appendChild(headRow);
+      table.appendChild(thead);
+
+      var tbody = document.createElement('tbody');
+      for (var i = 0; i < answers.length; i++) {
+        var a = answers[i];
+        var tr = document.createElement('tr');
+
+        var tdId = document.createElement('td');
+        tdId.textContent = a.id;
+        tdId.setAttribute('aria-label','Номер вопроса');
+        tr.appendChild(tdId);
+
+        var tdImg = document.createElement('td');
+        tdImg.className = 'cell-image';
+        var img = document.createElement('img');
+        img.src = a.img;
+        img.alt = 'Иллюстрация';
+        img.loading = 'lazy';
+        img.onerror = function() {
+          this.style.display = 'none';
+        };
+        tdImg.appendChild(img);
+        tr.appendChild(tdImg);
+
+        var tdCorrect = document.createElement('td');
+        var correctNode = createCellTextWithColorizedLetters(String(a.correct).toUpperCase());
+        tdCorrect.appendChild(correctNode);
+        tr.appendChild(tdCorrect);
+
+        var tdUser = document.createElement('td');
+        var userText = (a.answer || '—').toString().toUpperCase();
+        var userNode = createCellTextWithColorizedLetters(userText);
+        tdUser.appendChild(userNode);
+        tr.appendChild(tdUser);
+
+        var tdRes = document.createElement('td');
+        tdRes.className = 'result-icon';
+        tdRes.textContent = a.isCorrect ? '✅' : '❌';
+        tr.appendChild(tdRes);
+
+        tbody.appendChild(tr);
+      }
+
+      table.appendChild(tbody);
+      
+      while (tableContainer.firstChild) tableContainer.removeChild(tableContainer.firstChild);
+      tableContainer.appendChild(table);
+    }
+
+    function updateSoundIcon() {
+      if (soundOn) {
+        soundToggleEl.style.backgroundColor = '#FFD700';
+        soundToggleEl.setAttribute('aria-pressed', 'true');
+      } else {
+        soundToggleEl.style.backgroundColor = '#CCC';
+        soundToggleEl.setAttribute('aria-pressed', 'false');
+      }
+    }
+
+    function handleToggleSound() {
+      soundOn = !soundOn;
+      localStorage.setItem(STORAGE_SOUND_KEY, String(soundOn));
+      updateSoundIcon();
+      if (soundOn) {
+        speak('Звук включён');
+      } else {
+        window.speechSynthesis.cancel();
+      }
+    }
+
+    restartButton.addEventListener('click', function(){
+      speak('Начинаем заново!');
+      setTimeout(function() {
+        clearAnswers();
+        window.location.href = 'question.html';
+      }, 1000);
+    });
+
+    soundToggleEl.addEventListener('click', handleToggleSound);
+
+    closeButtonEl.addEventListener('click', function() {
+      if (confirm('Вы уверены, что хотите выйти?')) {
+        clearAnswers();
+        window.location.reload();
+      }
+    });
+
+    if (window.speechSynthesis) {
+      window.speechSynthesis.getVoices();
+    }
+
+    try {
+      var savedSound = localStorage.getItem(STORAGE_SOUND_KEY);
+      if (savedSound !== null) {
+        soundOn = savedSound === 'true';
+      }
+    } catch(e) {
+      console.error('Ошибка загрузки настроек звука:', e);
+    }
+
+    var answers = loadAnswers();
+    var correctCount = 0;
+    for (var i = 0; i < answers.length; i++) {
+      if (answers[i].isCorrect) correctCount++;
+    }
+    var total = answers.length;
+
+    if (correctCount === total) {
+      resultsEmoji.textContent = '🎉🏆🎊';
+      resultsScore.innerHTML = 'СУПЕР! Все правильно: <span class="vowel">' + correctCount + '</span> из ' + total;
+      setTimeout(function() { speak('Супер! Все правильно! Ты молодец!'); }, 800);
+    } else if (correctCount >= Math.ceil(total * 0.6)) {
+      resultsEmoji.textContent = '😊👍✨';
+      resultsScore.innerHTML = 'МОЛОДЕЦ! Правильных ответов: <span class="vowel">' + correctCount + '</span> из ' + total;
+      setTimeout(function() { speak('Молодец! Правильных ответов: ' + correctCount + ' из ' + total); }, 800);
+    } else {
+      resultsEmoji.textContent = '💪🌟😄';
+      resultsScore.innerHTML = 'УМНИЦА! Правильных ответов: <span class="vowel">' + correctCount + '</span> из ' + total;
+      setTimeout(function() { speak('Умница! Правильных ответов: ' + correctCount + ' из ' + total + '. Попробуй ещё раз!'); }, 800);
+    }
+
+    updateSoundIcon();
+    renderTable(answers);
+
+  })();
+  </script>
+</body>
+</html>

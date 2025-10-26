@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Тренажёр — Вопрос</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-wrap">
+    <main class="trainer" role="main" aria-labelledby="trainer-title">
+      <h1 id="trainer-title" style="position:absolute;left:-9999px">Тренажёр</h1>
+
+      <button id="soundToggle" class="sound-toggle" aria-pressed="true" title="Включить / выключить звук">
+        🎧
+      </button>
+
+      <nav class="sidebar" aria-label="Список вопросов"></nav>
+
+      <section class="content" aria-live="polite">
+        <div class="image-card" id="imageCard" role="img" aria-label="Иллюстрация вопроса"></div>
+        <div class="question-label" id="questionLabel">НАПЕЧАТАЙ: ...</div>
+        <div class="input-row" aria-label="Поле ответа">
+          <input id="answerInput" class="input-field" type="text" inputmode="text" autocomplete="off" autocapitalize="characters" placeholder="НАПИШИ ОТВЕТ" aria-label="Ввод ответа">
+          <button id="checkButton" class="check-button" aria-label="Принять ответ">✔</button>
+        </div>
+      </section>
+    </main>
+
+    <button id="closeButton" class="close-button" aria-label="Выход">✕</button>
+  </div>
+
+  <script>
+  (function () {
+    'use strict';
+
+    const QUESTIONS = [
+      { 
+        id: 1, 
+        label: 'НАПЕЧАТАЙ: ЗЕЛЕНЬ', 
+        img: 'images/1-zeleni.jpg', 
+        correct: 'ЗЕЛЕНЬ',
+        voiceText: 'Напечатай: зелень'
+      },
+      { 
+        id: 2, 
+        label: 'НАПЕЧАТАЙ: АШАН', 
+        img: 'images/2-ashan.jpg', 
+        correct: 'АШАН',
+        voiceText: 'Напечатай: ашан'
+      },
+      { 
+        id: 3, 
+        label: 'НАПЕЧАТАЙ: ТЮМЕНЬ', 
+        img: 'images/3-tyumen.jpg', 
+        correct: 'ТЮМЕНЬ',
+        voiceText: 'Напечатай: тюмень'
+      },
+      { 
+        id: 4, 
+        label: 'НАПЕЧАТАЙ: КАТОК', 
+        img: 'images/4-katok-road.jpg', 
+        correct: 'КАТОК',
+        voiceText: 'Напечатай: каток. Дорожный каток'
+      },
+      { 
+        id: 5, 
+        label: 'НАПЕЧАТАЙ: КАТОК', 
+        img: 'images/5-katok-ice.jpg', 
+        correct: 'КАТОК',
+        voiceText: 'Напечатай: каток. Ледовый каток'
+      }
+    ];
+    const STORAGE_KEY = 'emo_trainer_answers_v1';
+    const STORAGE_SOUND_KEY = 'emo_trainer_sound_v1';
+
+    let currentIndex = 0;
+    let answers = [];
+    let isProcessing = false;
+    let soundOn = true;
+
+    const sidebarEl = document.querySelector('.sidebar');
+    const imageCardEl = document.getElementById('imageCard');
+    const questionLabelEl = document.getElementById('questionLabel');
+    const answerInputEl = document.getElementById('answerInput');
+    const checkButtonEl = document.getElementById('checkButton');
+    const soundToggleEl = document.getElementById('soundToggle');
+    const closeButtonEl = document.getElementById('closeButton');
+
+    function speak(text) {
+      if (!soundOn || !window.speechSynthesis) return;
+
+      try {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'ru-RU';
+        utterance.rate = 0.85;
+        utterance.pitch = 1.3;
+        utterance.volume = 1.0;
+
+        const voices = window.speechSynthesis.getVoices();
+        const femaleVoice = voices.find(function(v) {
+          return v.lang.indexOf('ru') === 0 && (
+            v.name.indexOf('Elena') !== -1 || 
+            v.name.indexOf('Milena') !== -1 || 
+            v.name.indexOf('Anna') !== -1
+          );
+        }) || voices.find(function(v) { return v.lang.indexOf('ru') === 0; });
+
+        if (femaleVoice) utterance.voice = femaleVoice;
+
+        utterance.onstart = function() { 
+          soundToggleEl.classList.add('playing'); 
+        };
+        utterance.onend = function() { 
+          soundToggleEl.classList.remove('playing'); 
+        };
+
+        window.speechSynthesis.speak(utterance);
+      } catch (error) {
+        console.error('Ошибка озвучки:', error);
+      }
+    }
+
+    function setUppercaseText(el, text) {
+      el.textContent = String(text).toUpperCase();
+    }
+
+    function renderSidebar() {
+      while (sidebarEl.firstChild) sidebarEl.removeChild(sidebarEl.firstChild);
+      
+      for (var i = 0; i < QUESTIONS.length; i++) {
+        (function(idx) {
+          var q = QUESTIONS[idx];
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'sidebar-button';
+          
+          if (idx === currentIndex) {
+            btn.classList.add('active');
+          }
+          
+          var isAnswered = answers.some(function(a) { return a.id === q.id; });
+          if (isAnswered && idx !== currentIndex) {
+            btn.classList.add('completed');
+            btn.textContent = '✓';
+          } else {
+            btn.textContent = String(q.id);
+          }
+          
+          btn.addEventListener('click', function() { 
+            if (!isProcessing) goToQuestion(idx); 
+          });
+          sidebarEl.appendChild(btn);
+        })(i);
+      }
+    }
+
+    function renderQuestion() {
+      var q = QUESTIONS[currentIndex];
+      
+      while (imageCardEl.firstChild) imageCardEl.removeChild(imageCardEl.firstChild);
+      var img = document.createElement('img');
+      img.src = q.img;
+      img.alt = q.label;
+      img.loading = 'lazy';
+      img.onerror = function() {
+        this.style.display = 'none';
+        var placeholder = document.createElement('div');
+        placeholder.style.cssText = 'width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:16px;color:#999;padding:20px;text-align:center;';
+        placeholder.textContent = 'Изображение не найдено: ' + q.img;
+        imageCardEl.appendChild(placeholder);
+      };
+      imageCardEl.appendChild(img);
+
+      setUppercaseText(questionLabelEl, q.label);
+      answerInputEl.value = '';
+      answerInputEl.focus();
+      updateCheckButton();
+
+      setTimeout(function() { speak(q.voiceText); }, 500);
+      renderSidebar();
+    }
+
+    function goToQuestion(index) {
+      if (index < 0 || index >= QUESTIONS.length || isProcessing) return;
+      currentIndex = index;
+      renderQuestion();
+    }
+
+    function updateCheckButton() {
+      var hasInput = answerInputEl.value.trim().length > 0;
+      if (hasInput) {
+        checkButtonEl.classList.add('has-input');
+        checkButtonEl.disabled = false;
+      } else {
+        checkButtonEl.classList.remove('has-input');
+        checkButtonEl.disabled = true;
+      }
+    }
+
+    function handleCheck() {
+      if (isProcessing || !answerInputEl.value.trim()) return;
+      
+      isProcessing = true;
+      var raw = answerInputEl.value.trim().toUpperCase();
+      var q = QUESTIONS[currentIndex];
+      var isCorrect = raw === q.correct.toUpperCase();
+
+      answers = answers.filter(function(a) { return a.id !== q.id; });
+      
+      answers.push({
+        id: q.id,
+        question: q.label.toUpperCase(),
+        img: q.img,
+        correct: q.correct.toUpperCase(),
+        answer: raw,
+        isCorrect: Boolean(isCorrect)
+      });
+
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(answers));
+      } catch(e) {
+        console.error('Ошибка сохранения:', e);
+      }
+
+      speak('Ваш ответ принят, идём дальше');
+
+      setTimeout(function() {
+        if (currentIndex < QUESTIONS.length - 1) {
+          currentIndex += 1;
+          isProcessing = false;
+          renderQuestion();
+        } else {
+          speak('Отлично! Ты ответил на все вопросы! Посмотрим результаты!');
+          setTimeout(function() {
+            window.location.href = 'answers.html';
+          }, 2000);
+        }
+      }, 1500);
+    }
+
+    function handleToggleSound() {
+      soundOn = !soundOn;
+      localStorage.setItem(STORAGE_SOUND_KEY, String(soundOn));
+      updateSoundIcon();
+      if (soundOn) {
+        speak('Звук включён');
+      } else {
+        window.speechSynthesis.cancel();
+      }
+    }
+
+    function updateSoundIcon() {
+      if (soundOn) {
+        soundToggleEl.style.backgroundColor = '#FFD700';
+        soundToggleEl.setAttribute('aria-pressed', 'true');
+      } else {
+        soundToggleEl.style.backgroundColor = '#CCC';
+        soundToggleEl.setAttribute('aria-pressed', 'false');
+      }
+    }
+
+    function init() {
+      if (window.speechSynthesis) {
+        window.speechSynthesis.onvoiceschanged = function() {
+          window.speechSynthesis.getVoices();
+        };
+        window.speechSynthesis.getVoices();
+      }
+
+      try {
+        var savedSound = localStorage.getItem(STORAGE_SOUND_KEY);
+        if (savedSound !== null) {
+          soundOn = savedSound === 'true';
+        }
+        var saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        if (Array.isArray(saved)) {
+          answers = saved;
+        }
+      } catch(e) {
+        console.error('Ошибка загрузки:', e);
+      }
+
+      renderSidebar();
+      updateSoundIcon();
+      renderQuestion();
+
+      answerInputEl.addEventListener('input', updateCheckButton);
+      answerInputEl.addEventListener('keydown', function(ev) {
+        if (ev.key === 'Enter' && !isProcessing) {
+          ev.preventDefault();
+          handleCheck();
+        }
+      });
+
+      checkButtonEl.addEventListener('click', handleCheck);
+      soundToggleEl.addEventListener('click', handleToggleSound);
+      closeButtonEl.addEventListener('click', function() {
+        if (confirm('Вы уверены, что хотите выйти?')) {
+          localStorage.removeItem(STORAGE_KEY);
+          window.location.reload();
+        }
+      });
+
+      setTimeout(function() {
+        speak('Привет! Напечатай правильные ответы!');
+      }, 1000);
+    }
+
+    init();
+
+  })();
+  </script>
+</body>
+</html>
